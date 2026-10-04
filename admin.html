@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>山里波｜営業カレンダー管理</title>
+<style>
+:root{--green:#31594b;--cream:#f5f2e9;--paper:#fffdf8;--red:#b3453e;--gold:#b68d50;--line:#ddd8ca}
+*{box-sizing:border-box}body{margin:0;background:var(--cream);color:#26352f;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif}.top{background:var(--green);color:#fff;padding:17px 18px;position:sticky;top:0;z-index:5}.top b{font-size:1.05rem}.top span{font-size:.72rem;opacity:.75;margin-left:8px}.wrap{max-width:760px;margin:auto;padding:18px}.panel{background:var(--paper);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 6px 25px #26352f0b}.month{display:flex;gap:8px;align-items:center;justify-content:space-between}.month button{border:0;background:#e8eee9;border-radius:10px;padding:10px 14px}.month strong{font-size:1.15rem}.legend{display:flex;gap:7px;flex-wrap:wrap;margin:15px 0}.legend span{padding:5px 9px;border-radius:20px;font-size:.7rem;background:#eef2ed}.legend .r{background:#f8e5e3;color:var(--red)}.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.dow{text-align:center;font-size:.7rem;color:#777;padding:5px}.cell{min-height:78px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px;position:relative}.num{font-size:.7rem;color:#777}.actions{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}.actions button{border:0;border-radius:7px;padding:7px 2px;font-size:.68rem;background:#eef2ed;color:#31594b}.actions button.active{background:var(--green);color:#fff}.actions button.closed.active{background:var(--red)}.actions button.dinner.active{background:#7b6a42}.outside{opacity:.35}.field label{display:block;font-size:.75rem;font-weight:bold;margin-bottom:6px}.field input[type=text],.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit;background:#fff}.field textarea{min-height:80px;resize:vertical}.upload{border:2px dashed #c8c2b5;border-radius:12px;padding:14px;text-align:center;background:#faf8f1}.upload input{width:100%}.preview{margin-top:10px;max-height:180px;overflow:hidden;border-radius:10px}.preview img{width:100%;max-height:180px;object-fit:contain;background:#eee}.save{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff;padding:14px;font-weight:bold;font-size:1rem}.hint{font-size:.72rem;color:#737b76;margin:8px 0 0}.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#203b32;color:#fff;padding:10px 18px;border-radius:30px;display:none;font-size:.8rem}
+@media(max-width:500px){.cell{min-height:88px}.actions button{font-size:.61rem;padding:8px 1px}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="top"><b>山里波 営業カレンダー</b><span>スマホ管理用</span></div>
+<div class="wrap">
+<div class="panel">
+ <div class="month"><button id="prev">‹ 前月</button><strong id="title"></strong><button id="next">次月 ›</button></div>
+ <div class="legend"><span>● ランチ</span><span>● ディナー</span><span class="r">● 定休日</span></div>
+ <div class="grid" id="calendar"></div>
+ <p class="hint">日付ごとに「ランチ」「ディナー」「定休日」をタップ。もう一度押すと解除できます。</p>
+</div>
+<div class="panel">
+ <div class="field"><label>今月のお知らせ</label><textarea id="notice" placeholder="例：9月22日(火)・24日(木)はお休みさせて頂きます。"></textarea></div>
+ <div class="field" style="margin-top:14px"><label>お知らせ画像（1枚）</label><div class="upload"><input id="photo" type="file" accept="image/*"><div class="preview" id="preview"></div></div></div>
+</div>
+<div class="panel"><button class="save" id="save">この内容を保存する</button><p class="hint">※この試作版はこの端末のブラウザに保存します。実際に公開サイトとスマホ管理を連動させる場合は、次の段階でクラウド保存をつなぎます。</p></div>
+</div><div class="toast" id="toast">保存しました</div>
+<script>
+let cur=new Date(2026,8,1),data=JSON.parse(localStorage.getItem('sanriba-calendar')||'{}'),photoData=data.photo||'';
+const dow=['月','火','水','木','金','土','日'];const title=document.getElementById('title'),cal=document.getElementById('calendar');
+function key(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function render(){
+ title.textContent=`${cur.getFullYear()}年${cur.getMonth()+1}月`;cal.innerHTML='';
+ dow.forEach(x=>cal.innerHTML+=`<div class="dow">${x}</div>`);
+ let first=(new Date(cur.getFullYear(),cur.getMonth(),1).getDay()+6)%7;
+ for(let i=0;i<first;i++)cal.innerHTML+='<div></div>';
+ let days=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
+ for(let d=1;d<=days;d++){
+  let k=key(new Date(cur.getFullYear(),cur.getMonth(),d)),v=data[k]||[];
+  let cell=document.createElement('div');cell.className='cell';cell.innerHTML=`<div class="num">${d}</div><div class="actions"><button data-v="lunch">ランチ</button><button class="dinner" data-v="dinner">ディナー</button><button class="closed" data-v="closed">定休日</button><button data-v="clear">解除</button></div>`;
+  cell.querySelectorAll('button').forEach(b=>{let val=b.dataset.v;if(v.includes(val))b.classList.add('active');b.onclick=()=>{if(val==='clear')data[k]=[];else{data[k]=(data[k]||[]).filter(x=>x!==val);if(!data[k].includes(val))data[k].push(val)}render()};});
+  cal.appendChild(cell);
+ }
+ document.getElementById('notice').value=data.notice||'';
+ document.getElementById('preview').innerHTML=photoData?`<img src="${photoData}">`:'';
+}
+document.getElementById('prev').onclick=()=>{cur.setMonth(cur.getMonth()-1);render()};
+document.getElementById('next').onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
+document.getElementById('photo').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{photoData=r.result;document.getElementById('preview').innerHTML=`<img src="${photoData}">`};r.readAsDataURL(f)};
+document.getElementById('save').onclick=()=>{data.notice=document.getElementById('notice').value;data.photo=photoData;localStorage.setItem('sanriba-calendar',JSON.stringify(data));let t=document.getElementById('toast');t.style.display='block';setTimeout(()=>t.style.display='none',1600)};
+render();
+</script>
+</body></html>
